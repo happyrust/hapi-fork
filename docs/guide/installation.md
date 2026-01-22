@@ -319,6 +319,205 @@ pm2 save
 ```
 </details>
 
+### Background service deployment
+
+Keep HAPI running persistently so it survives terminal closes, system restarts, and continues running in the background.
+
+<details>
+<summary>Quick: nohup</summary>
+
+Simple one-liner for quick background runs:
+
+```bash
+# Server
+nohup hapi server --relay > ~/.hapi/logs/server.log 2>&1 &
+
+# Runner
+nohup hapi runner start --foreground > ~/.hapi/logs/runner.log 2>&1 &
+```
+
+View logs:
+
+```bash
+tail -f ~/.hapi/logs/server.log
+tail -f ~/.hapi/logs/runner.log
+```
+
+Stop processes:
+
+```bash
+pkill -f "hapi server"
+pkill -f "hapi runner"
+```
+</details>
+
+<details>
+<summary>pm2 (recommended for Node.js users)</summary>
+
+pm2 provides process management with auto-restart on crashes and system reboot.
+
+```bash
+# Install pm2
+npm install -g pm2
+
+# Start server and runner
+pm2 start "hapi server --relay" --name hapi-server
+pm2 start "hapi runner start --foreground" --name hapi-runner
+
+# View status and logs
+pm2 status
+pm2 logs hapi-server
+pm2 logs hapi-runner
+
+# Auto-restart on system reboot
+pm2 startup    # Follow the printed instructions
+pm2 save       # Save current process list
+```
+</details>
+
+<details>
+<summary>macOS: launchd</summary>
+
+Create plist files for automatic startup on macOS.
+
+**Server** (`~/Library/LaunchAgents/com.hapi.server.plist`):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.hapi.server</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/hapi</string>
+        <string>server</string>
+        <string>--relay</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/YOUR_USERNAME/.hapi/logs/server.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/YOUR_USERNAME/.hapi/logs/server.log</string>
+</dict>
+</plist>
+```
+
+**Runner** (`~/Library/LaunchAgents/com.hapi.runner.plist`):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.hapi.runner</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/local/bin/hapi</string>
+        <string>runner</string>
+        <string>start</string>
+        <string>--foreground</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/YOUR_USERNAME/.hapi/logs/runner.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/YOUR_USERNAME/.hapi/logs/runner.log</string>
+</dict>
+</plist>
+```
+
+Load/unload services:
+
+```bash
+# Load (start)
+launchctl load ~/Library/LaunchAgents/com.hapi.server.plist
+launchctl load ~/Library/LaunchAgents/com.hapi.runner.plist
+
+# Unload (stop)
+launchctl unload ~/Library/LaunchAgents/com.hapi.server.plist
+launchctl unload ~/Library/LaunchAgents/com.hapi.runner.plist
+```
+
+> **macOS sleep note:** macOS may suspend background processes when the display sleeps. Use `caffeinate` to prevent this:
+> ```bash
+> caffeinate -dimsu hapi server --relay
+> ```
+> Or run `caffeinate -dimsu` in a separate terminal while HAPI is running.
+</details>
+
+<details>
+<summary>Linux: systemd</summary>
+
+Create user-level systemd services for automatic startup.
+
+**Server** (`~/.config/systemd/user/hapi-server.service`):
+
+```ini
+[Unit]
+Description=HAPI Server
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/hapi server --relay
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+```
+
+**Runner** (`~/.config/systemd/user/hapi-runner.service`):
+
+```ini
+[Unit]
+Description=HAPI Runner
+After=network.target hapi-server.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/hapi runner start --foreground
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
+```
+
+Enable and start:
+
+```bash
+# Reload systemd
+systemctl --user daemon-reload
+
+# Enable (auto-start on login)
+systemctl --user enable hapi-server
+systemctl --user enable hapi-runner
+
+# Start now
+systemctl --user start hapi-server
+systemctl --user start hapi-runner
+
+# View status/logs
+systemctl --user status hapi-server
+journalctl --user -u hapi-server -f
+```
+
+> **Persist after logout:** To keep services running even when not logged in:
+> ```bash
+> loginctl enable-linger $USER
+> ```
+</details>
+
 ### Voice assistant setup
 
 Enable voice control:
