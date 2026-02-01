@@ -14,7 +14,6 @@ type HookCommandConfig = {
 
 type HookSettings = {
     hooks: {
-        enabled?: boolean;
         SessionStart: HookCommandConfig[];
     };
 };
@@ -60,10 +59,6 @@ function buildHookSettings(command: string, hooksEnabled?: boolean): HookSetting
             }
         ]
     };
-
-    if (hooksEnabled !== undefined) {
-        hooks.enabled = hooksEnabled;
-    }
 
     return { hooks };
 }
