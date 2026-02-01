@@ -3,6 +3,7 @@ import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import { Autocomplete } from '@/components/ChatInput/Autocomplete'
 import { FloatingOverlay } from '@/components/ChatInput/FloatingOverlay'
 import { useTranslation } from '@/lib/use-translation'
+import { FolderOpenIcon } from '@/components/FileBrowser/icons'
 
 export function DirectorySection(props: {
     directory: string
@@ -16,6 +17,7 @@ export function DirectorySection(props: {
     onDirectoryKeyDown: (event: ReactKeyboardEvent<HTMLInputElement>) => void
     onSuggestionSelect: (index: number) => void
     onPathClick: (path: string) => void
+    onBrowseClick?: () => void
 }) {
     const { t } = useTranslation()
 
@@ -24,7 +26,7 @@ export function DirectorySection(props: {
             <label className="text-xs font-medium text-[var(--app-hint)]">
                 {t('newSession.directory')}
             </label>
-            <div className="relative">
+            <div className="relative flex gap-2">
                 <input
                     type="text"
                     placeholder={t('newSession.placeholder')}
@@ -34,8 +36,19 @@ export function DirectorySection(props: {
                     onFocus={props.onDirectoryFocus}
                     onBlur={props.onDirectoryBlur}
                     disabled={props.isDisabled}
-                    className="w-full rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
+                    className="flex-1 rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--app-link)] disabled:opacity-50"
                 />
+                {props.onBrowseClick && (
+                    <button
+                        type="button"
+                        onClick={props.onBrowseClick}
+                        disabled={props.isDisabled}
+                        className="px-3 py-2 rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] hover:bg-[var(--app-subtle-bg)] transition-colors disabled:opacity-50"
+                        title={t('newSession.browse')}
+                    >
+                        <FolderOpenIcon className="h-4 w-4" />
+                    </button>
+                )}
                 {props.suggestions.length > 0 && (
                     <div className="absolute top-full left-0 right-0 z-10 mt-1">
                         <FloatingOverlay maxHeight={200}>

@@ -40,6 +40,7 @@ export function SpawnSession(props: {
             const result = await spawnSession({
                 machineId: props.machineId,
                 directory: trimmed,
+                yolo: true,
                 sessionType,
                 worktreeName: sessionType === 'worktree' ? (worktreeName.trim() || undefined) : undefined
             })

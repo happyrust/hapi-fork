@@ -95,6 +95,7 @@ export default {
   'newSession.directory': '目录',
   'newSession.placeholder': '/path/to/project',
   'newSession.recent': '最近路径',
+  'newSession.browse': '浏览',
   'newSession.type': '会话类型',
   'newSession.type.simple': '简单',
   'newSession.type.simple.desc': '直接使用选定的目录',
@@ -109,6 +110,19 @@ export default {
   'newSession.yolo.desc': '启动时使用危险的代理标志。',
   'newSession.create': '创建',
   'newSession.creating': '创建中…',
+
+  // File browser
+  'fileBrowser.title': '浏览目录',
+  'fileBrowser.goUp': '返回上级',
+  'fileBrowser.goHome': '返回主目录',
+  'fileBrowser.refresh': '刷新',
+  'fileBrowser.showHidden': '显示隐藏文件',
+  'fileBrowser.hideHidden': '隐藏隐藏文件',
+  'fileBrowser.empty': '目录为空',
+  'fileBrowser.cancel': '取消',
+  'fileBrowser.select': '选择此目录',
+  'fileBrowser.stats': '{folders} 个文件夹，{files} 个文件',
+  'fileBrowser.error.loadFailed': '加载目录失败',
 
   // Spawn session (old component)
   'spawn.title': '创建会话',

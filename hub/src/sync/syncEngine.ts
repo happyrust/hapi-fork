@@ -399,6 +399,20 @@ export class SyncEngine {
         return await this.rpcGateway.checkPathsExist(machineId, paths)
     }
 
+    async browseDirectory(machineId: string, path?: string): Promise<{
+        success: boolean
+        entries?: Array<{
+            name: string
+            type: 'file' | 'directory' | 'other'
+            size?: number
+            modified?: number
+        }>
+        currentPath?: string
+        error?: string
+    }> {
+        return await this.rpcGateway.browseDirectory(machineId, path)
+    }
+
     async getGitStatus(sessionId: string, cwd?: string): Promise<RpcCommandResponse> {
         return await this.rpcGateway.getGitStatus(sessionId, cwd)
     }

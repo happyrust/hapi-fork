@@ -103,7 +103,8 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
 
     const hookSettingsPath = generateHookSettingsFile(hookServer.port, hookServer.token, {
         filenamePrefix: 'session-hook',
-        logLabel: 'generateHookSettings'
+        logLabel: 'generateHookSettings',
+        hooksEnabled: true
     });
     logger.debug(`[START] Generated hook settings file: ${hookSettingsPath}`);
 
@@ -142,7 +143,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
     }));
 
     // Forward messages to the queue
-    let currentPermissionMode: PermissionMode = options.permissionMode ?? 'default';
+    let currentPermissionMode: PermissionMode = options.permissionMode ?? 'bypassPermissions';
     let currentModelMode: SessionModelMode = options.model === 'sonnet' || options.model === 'opus' ? options.model : 'default';
     let currentFallbackModel: string | undefined = undefined; // Track current fallback model
     let currentCustomSystemPrompt: string | undefined = undefined; // Track current custom system prompt
@@ -227,7 +228,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         if (specialCommand.type === 'compact') {
             logger.debug('[start] Detected /compact command');
             const enhancedMode: EnhancedMode = {
-                permissionMode: messagePermissionMode ?? 'default',
+                permissionMode: messagePermissionMode ?? 'bypassPermissions',
                 model: messageModel,
                 fallbackModel: messageFallbackModel,
                 customSystemPrompt: messageCustomSystemPrompt,
@@ -245,7 +246,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
         if (specialCommand.type === 'clear') {
             logger.debug('[start] Detected /clear command');
             const enhancedMode: EnhancedMode = {
-                permissionMode: messagePermissionMode ?? 'default',
+                permissionMode: messagePermissionMode ?? 'bypassPermissions',
                 model: messageModel,
                 fallbackModel: messageFallbackModel,
                 customSystemPrompt: messageCustomSystemPrompt,
@@ -262,7 +263,7 @@ export async function runClaude(options: StartOptions = {}): Promise<void> {
 
         // Push with resolved permission mode, model, system prompts, and tools
         const enhancedMode: EnhancedMode = {
-            permissionMode: messagePermissionMode ?? 'default',
+            permissionMode: messagePermissionMode ?? 'bypassPermissions',
             model: messageModel,
             fallbackModel: messageFallbackModel,
             customSystemPrompt: messageCustomSystemPrompt,

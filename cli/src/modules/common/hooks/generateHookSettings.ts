@@ -61,9 +61,9 @@ function buildHookSettings(command: string, hooksEnabled?: boolean): HookSetting
         ]
     };
 
-    // if (hooksEnabled !== undefined) {
-    //    hooks.enabled = hooksEnabled;
-    // }
+    if (hooksEnabled !== undefined) {
+        hooks.enabled = hooksEnabled;
+    }
 
     return { hooks };
 }

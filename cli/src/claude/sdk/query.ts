@@ -23,6 +23,7 @@ import {
     AbortError
 } from './types'
 import { getDefaultClaudeCodePath, logDebug, streamToStdin } from './utils'
+import { resolveClaudeSpawn } from './spawn'
 import { withBunRuntimeEnv } from '@/utils/bunRuntime'
 import { killProcessByChildProcess } from '@/utils/process'
 import { stripNewlinesForWindowsShellArg } from '@/utils/shellEscape'
@@ -333,40 +334,21 @@ export function query(config: {
         throw new ReferenceError(`Claude Code executable not found at ${pathToClaudeCodeExecutable}. Is options.pathToClaudeCodeExecutable set?`)
     }
 
-    let spawnCommand = pathToClaudeCodeExecutable
     const spawnArgs = args
-
-    // Auto-detect execution mode based on file extension
-    let useShell = process.platform === 'win32';
-    
-    if (spawnCommand.endsWith('.js')) {
-        // For JS files (NPM install), run directly with node
-        spawnArgs.unshift(spawnCommand);
-        spawnCommand = 'node';
-        useShell = false; 
-    } else if (process.platform === 'win32') {
-        // Native .exe -> No shell needed
-        if (spawnCommand.toLowerCase().endsWith('.exe')) {
-            useShell = false;
-        } else {
-            // .cmd or others -> Shell needed
-            useShell = true;
-        }
-    }
-
     cleanupMcpConfig = appendMcpConfigArg(spawnArgs, mcpServers)
+    const resolved = resolveClaudeSpawn(pathToClaudeCodeExecutable, spawnArgs)
 
     // Spawn Claude Code process
     const spawnEnv = withBunRuntimeEnv(process.env, { allowBunBeBun: false })
-    logDebug(`Spawning Claude Code process: ${spawnCommand} ${spawnArgs.join(' ')}`)
+    logDebug(`Spawning Claude Code process: ${resolved.command} ${resolved.args.join(' ')}`)
 
-    const child = spawn(spawnCommand, spawnArgs, {
+    const child = spawn(resolved.command, resolved.args, {
         cwd,
         stdio: ['pipe', 'pipe', 'pipe'],
         signal: config.options?.abort,
         env: spawnEnv,
         // Use shell on Windows for command resolution
-        shell: useShell
+        shell: resolved.shell
     }) as ChildProcessWithoutNullStreams
 
     // Handle stdin

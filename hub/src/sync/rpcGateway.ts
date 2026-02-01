@@ -31,6 +31,18 @@ export type RpcPathExistsResponse = {
     exists: Record<string, boolean>
 }
 
+export type RpcBrowseDirectoryResponse = {
+    success: boolean
+    entries?: Array<{
+        name: string
+        type: 'file' | 'directory' | 'other'
+        size?: number
+        modified?: number
+    }>
+    currentPath?: string
+    error?: string
+}
+
 export class RpcGateway {
     constructor(
         private readonly io: Server,
@@ -137,6 +149,14 @@ export class RpcGateway {
             exists[key] = value === true
         }
         return exists
+    }
+
+    async browseDirectory(machineId: string, path?: string): Promise<RpcBrowseDirectoryResponse> {
+        const result = await this.machineRpc(machineId, 'browse-directory', { path: path ?? '' }) as RpcBrowseDirectoryResponse | unknown
+        if (!result || typeof result !== 'object') {
+            return { success: false, error: 'Unexpected browse-directory result' }
+        }
+        return result as RpcBrowseDirectoryResponse
     }
 
     async getGitStatus(sessionId: string, cwd?: string): Promise<RpcCommandResponse> {

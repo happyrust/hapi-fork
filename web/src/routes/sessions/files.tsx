@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from '@tanstack/react-router'
 import type { FileSearchItem, GitFileStatus } from '@/types/api'
 import { FileIcon } from '@/components/FileIcon'
@@ -231,6 +231,20 @@ export default function FilesPage() {
     const { sessionId } = useParams({ from: '/sessions/$sessionId/files' })
     const { session } = useSession(api, sessionId)
     const [searchQuery, setSearchQuery] = useState('')
+    const [showAllFiles, setShowAllFiles] = useState<boolean>(() => {
+        return localStorage.getItem('hapi-files-show-all') === 'true'
+    })
+    const [showDiff, setShowDiff] = useState<boolean>(() => {
+        return localStorage.getItem('hapi-files-show-diff') !== 'false'
+    })
+
+    useEffect(() => {
+        localStorage.setItem('hapi-files-show-all', showAllFiles ? 'true' : 'false')
+    }, [showAllFiles])
+
+    useEffect(() => {
+        localStorage.setItem('hapi-files-show-diff', showDiff ? 'true' : 'false')
+    }, [showDiff])
 
     const {
         status: gitStatus,
@@ -239,11 +253,13 @@ export default function FilesPage() {
         refetch: refetchGit
     } = useGitStatusFiles(api, sessionId)
 
-    const shouldSearch = Boolean(searchQuery)
+    const shouldSearchFiles = Boolean(searchQuery)
+        || showAllFiles
         || (gitStatus ? (gitStatus.totalStaged === 0 && gitStatus.totalUnstaged === 0) : Boolean(gitError))
 
     const searchResults = useSessionFileSearch(api, sessionId, searchQuery, {
-        enabled: shouldSearch && !gitLoading
+        enabled: shouldSearchFiles && !gitLoading,
+        limit: showAllFiles ? 500 : 200,
     })
 
     const handleOpenFile = useCallback((path: string, staged?: boolean) => {
@@ -260,6 +276,13 @@ export default function FilesPage() {
     const branchLabel = gitStatus?.branch ?? 'detached'
     const subtitle = session?.metadata?.path ?? sessionId
     const showGitErrorBanner = Boolean(gitError)
+
+    const toggleButtonClass = (active: boolean) => (
+        `rounded px-3 py-1 text-xs font-semibold transition-colors ${active
+            ? 'bg-[var(--app-button)] text-[var(--app-button-text)] opacity-80'
+            : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'
+        }`
+    )
 
     return (
         <div className="flex h-full flex-col">
@@ -300,6 +323,27 @@ export default function FilesPage() {
                             autoCorrect="off"
                         />
                     </div>
+                    <div className="mt-2 flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setShowAllFiles((v) => !v)}
+                            className={toggleButtonClass(showAllFiles)}
+                            title="Toggle project file list"
+                        >
+                            All files
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setShowDiff((v) => !v)}
+                            className={toggleButtonClass(showDiff)}
+                            title="Toggle diff display in file viewer"
+                        >
+                            Diff
+                        </button>
+                        {showAllFiles ? (
+                            <span className="text-[11px] text-[var(--app-hint)]">top 500</span>
+                        ) : null}
+                    </div>
                 </div>
             </div>
 
@@ -326,29 +370,8 @@ export default function FilesPage() {
                     ) : null}
                     {gitLoading ? (
                         <FileListSkeleton label="Loading Git status…" />
-                    ) : shouldSearch ? (
-                        searchResults.isLoading ? (
-                            <FileListSkeleton label="Loading files…" />
-                        ) : searchResults.error ? (
-                            <div className="p-6 text-sm text-[var(--app-hint)]">{searchResults.error}</div>
-                        ) : searchResults.files.length === 0 ? (
-                            <div className="p-6 text-sm text-[var(--app-hint)]">
-                                {searchQuery ? 'No files match your search.' : 'No files found in this project.'}
-                            </div>
-                        ) : (
-                            <div className="border-t border-[var(--app-divider)]">
-                                {searchResults.files.map((file, index) => (
-                                    <SearchResultRow
-                                        key={`${file.fullPath}-${index}`}
-                                        file={file}
-                                        onOpen={() => handleOpenFile(file.fullPath)}
-                                        showDivider={index < searchResults.files.length - 1}
-                                    />
-                                ))}
-                            </div>
-                        )
                     ) : (
-                        <div>
+                        <div className="pb-4">
                             {gitStatus?.stagedFiles.length ? (
                                 <div>
                                     <div className="border-b border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 text-xs font-semibold text-[var(--app-git-staged-color)]">
@@ -384,6 +407,34 @@ export default function FilesPage() {
                             {gitStatus && gitStatus.stagedFiles.length === 0 && gitStatus.unstagedFiles.length === 0 ? (
                                 <div className="p-6 text-sm text-[var(--app-hint)]">
                                     No changes detected. Use search to browse files.
+                                </div>
+                            ) : null}
+
+                            {shouldSearchFiles ? (
+                                <div className="mt-2 border-t border-[var(--app-divider)]">
+                                    <div className="border-b border-[var(--app-divider)] bg-[var(--app-bg)] px-3 py-2 text-xs font-semibold text-[var(--app-hint)]">
+                                        Project Files
+                                    </div>
+                                    {searchResults.isLoading ? (
+                                        <FileListSkeleton label="Loading files…" />
+                                    ) : searchResults.error ? (
+                                        <div className="p-6 text-sm text-[var(--app-hint)]">{searchResults.error}</div>
+                                    ) : searchResults.files.length === 0 ? (
+                                        <div className="p-6 text-sm text-[var(--app-hint)]">
+                                            {searchQuery ? 'No files match your search.' : 'No files found in this project.'}
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            {searchResults.files.map((file, index) => (
+                                                <SearchResultRow
+                                                    key={`${file.fullPath}-${index}`}
+                                                    file={file}
+                                                    onOpen={() => handleOpenFile(file.fullPath)}
+                                                    showDivider={index < searchResults.files.length - 1}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             ) : null}
                         </div>

@@ -1,6 +1,7 @@
 import type {
     AttachmentMetadata,
     AuthResponse,
+    BrowseDirectoryResponse,
     DeleteUploadResponse,
     FileReadResponse,
     FileSearchResponse,
@@ -353,6 +354,20 @@ export class ApiClient {
                 method: 'POST',
                 body: JSON.stringify({ paths })
             }
+        )
+    }
+
+    async browseDirectory(
+        machineId: string,
+        path?: string
+    ): Promise<BrowseDirectoryResponse> {
+        const params = new URLSearchParams()
+        if (path) {
+            params.set('path', path)
+        }
+        const qs = params.toString()
+        return await this.request<BrowseDirectoryResponse>(
+            `/api/machines/${encodeURIComponent(machineId)}/browse${qs ? `?${qs}` : ''}`
         )
     }
 

@@ -50,7 +50,7 @@ export async function runOpencode(opts: {
     }));
 
     const sessionWrapperRef: { current: OpencodeSession | null } = { current: null };
-    let currentPermissionMode: PermissionMode = opts.permissionMode ?? 'default';
+    let currentPermissionMode: PermissionMode = opts.permissionMode ?? 'yolo';
     const hookServer = await startOpencodeHookServer({
         onEvent: (event) => {
             const currentSession = sessionWrapperRef.current;

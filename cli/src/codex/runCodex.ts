@@ -49,7 +49,7 @@ export async function runCodex(opts: {
     const codexCliOverrides = parseCodexCliOverrides(opts.codexArgs);
     const sessionWrapperRef: { current: CodexSession | null } = { current: null };
 
-    let currentPermissionMode: PermissionMode = opts.permissionMode ?? 'default';
+    let currentPermissionMode: PermissionMode = opts.permissionMode ?? 'yolo';
     const currentModel = opts.model;
     let currentCollaborationMode: EnhancedMode['collaborationMode'];
 
@@ -76,7 +76,7 @@ export async function runCodex(opts: {
         logger.debug(`[Codex] User message received with permission mode: ${currentPermissionMode}`);
 
         const enhancedMode: EnhancedMode = {
-            permissionMode: messagePermissionMode ?? 'default',
+            permissionMode: messagePermissionMode ?? 'yolo',
             model: currentModel,
             collaborationMode: currentCollaborationMode
         };

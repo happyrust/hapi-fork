@@ -26,6 +26,9 @@ npm-debug.log*
 # Coverage
 coverage/
 
+# Lockfiles (repo uses Bun)
+pnpm-lock.yaml
+
 # OS / IDE
 **/.DS_Store
 .idea/
@@ -40,3 +43,4 @@ execplan/
 
 # Generated npm bundle output (local)
 cli/npm/main/
+.ace-tool/

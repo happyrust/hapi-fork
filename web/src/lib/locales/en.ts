@@ -93,6 +93,7 @@ export default {
   'newSession.directory': 'Directory',
   'newSession.placeholder': '/path/to/project',
   'newSession.recent': 'Recent paths',
+  'newSession.browse': 'Browse',
   'newSession.type': 'Session type',
   'newSession.type.simple': 'Simple',
   'newSession.type.simple.desc': 'Use selected directory as-is',
@@ -107,6 +108,19 @@ export default {
   'newSession.yolo.desc': 'Uses dangerous agent flags when spawning.',
   'newSession.create': 'Create',
   'newSession.creating': 'Creating…',
+
+  // File browser
+  'fileBrowser.title': 'Browse Directory',
+  'fileBrowser.goUp': 'Go up',
+  'fileBrowser.goHome': 'Go to home',
+  'fileBrowser.refresh': 'Refresh',
+  'fileBrowser.showHidden': 'Show hidden files',
+  'fileBrowser.hideHidden': 'Hide hidden files',
+  'fileBrowser.empty': 'Empty directory',
+  'fileBrowser.cancel': 'Cancel',
+  'fileBrowser.select': 'Select This Directory',
+  'fileBrowser.stats': '{folders} folders, {files} files',
+  'fileBrowser.error.loadFailed': 'Failed to load directory',
 
   // Spawn session (old component)
   'spawn.title': 'Create Session',

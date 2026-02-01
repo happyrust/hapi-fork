@@ -3,7 +3,9 @@
  */
 
 import { io, type Socket } from 'socket.io-client'
-import { stat } from 'node:fs/promises'
+import { stat, readdir } from 'node:fs/promises'
+import { basename, join } from 'node:path'
+import { homedir } from 'node:os'
 import { logger } from '@/ui/logger'
 import { configuration } from '@/configuration'
 import type { Update, UpdateMachineBody } from '@hapi/protocol'
@@ -63,6 +65,24 @@ interface PathExistsResponse {
     exists: Record<string, boolean>
 }
 
+interface BrowseDirectoryRequest {
+    path: string
+}
+
+interface DirectoryEntry {
+    name: string
+    type: 'file' | 'directory' | 'other'
+    size?: number
+    modified?: number
+}
+
+interface BrowseDirectoryResponse {
+    success: boolean
+    entries?: DirectoryEntry[]
+    currentPath?: string
+    error?: string
+}
+
 export class ApiMachineClient {
     private socket!: Socket<ServerToRunnerEvents, RunnerToServerEvents>
     private keepAliveInterval: NodeJS.Timeout | null = null
@@ -96,6 +116,75 @@ export class ApiMachineClient {
             }))
 
             return { exists }
+        })
+
+        this.rpcHandlerManager.registerHandler<BrowseDirectoryRequest, BrowseDirectoryResponse>('browse-directory', async (params) => {
+            const requestedPath = params?.path?.trim()
+
+            // Default to home directory if no path provided or empty
+            const targetPath = requestedPath || homedir()
+
+            try {
+                const resolvedPath = targetPath
+                const stats = await stat(resolvedPath)
+
+                if (!stats.isDirectory()) {
+                    return {
+                        success: false,
+                        error: 'Path is not a directory'
+                    }
+                }
+
+                const entries = await readdir(resolvedPath, { withFileTypes: true })
+
+                const directoryEntries: DirectoryEntry[] = await Promise.all(
+                    entries.map(async (entry) => {
+                        const fullPath = join(resolvedPath, entry.name)
+                        let type: 'file' | 'directory' | 'other' = 'other'
+                        let size: number | undefined
+                        let modified: number | undefined
+
+                        if (entry.isDirectory()) {
+                            type = 'directory'
+                        } else if (entry.isFile()) {
+                            type = 'file'
+                        }
+
+                        try {
+                            const entryStats = await stat(fullPath)
+                            size = entryStats.size
+                            modified = entryStats.mtime.getTime()
+                        } catch {
+                            // Ignore stat errors for individual entries
+                        }
+
+                        return {
+                            name: entry.name,
+                            type,
+                            size,
+                            modified
+                        }
+                    })
+                )
+
+                // Sort: directories first, then alphabetically
+                directoryEntries.sort((a, b) => {
+                    if (a.type === 'directory' && b.type !== 'directory') return -1
+                    if (a.type !== 'directory' && b.type === 'directory') return 1
+                    return a.name.localeCompare(b.name)
+                })
+
+                return {
+                    success: true,
+                    entries: directoryEntries,
+                    currentPath: resolvedPath
+                }
+            } catch (error) {
+                return {
+                    success: false,
+                    error: error instanceof Error ? error.message : 'Failed to browse directory'
+                }
+            }
         })
     }
 

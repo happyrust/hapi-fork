@@ -53,7 +53,7 @@ export async function runGemini(opts: {
     }));
 
     const sessionWrapperRef: { current: GeminiSession | null } = { current: null };
-    let currentPermissionMode: PermissionMode = opts.permissionMode ?? 'default';
+    let currentPermissionMode: PermissionMode = opts.permissionMode ?? 'yolo';
     const resolvedModel = resolveGeminiRuntimeConfig({ model: opts.model }).model;
 
     const hookServer = await startHookServer({

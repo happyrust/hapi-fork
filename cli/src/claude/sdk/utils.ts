@@ -53,7 +53,7 @@ function findNpmGlobalClaudeJs(): string | null {
 
     // 2. Try npm root -g
     try {
-        const npmRoot = execSync('npm root -g', { encoding: 'utf-8' } as any).trim().replace(/[\r\n]/g, '');
+        const npmRoot = execSync('npm root -g', { encoding: 'utf-8', timeout: 1000 } as any).trim().replace(/[\r\n]/g, '');
         if (npmRoot) {
             const jsPath = join(npmRoot, '@anthropic-ai', 'claude-code', 'cli.js');
             if (existsSync(jsPath)) return jsPath;
@@ -105,6 +105,10 @@ export function getDefaultClaudeCodePath(): string {
     if (npmJs) return npmJs;
 
     // 3. Fallback to global command (Native exe/cmd)
+    const globalPath = findGlobalClaudePath();
+    if (globalPath) {
+        return resolveToJs(globalPath);
+    }
     return resolveToJs('claude');
 }
 

@@ -94,6 +94,34 @@ function resolveLanguage(path: string): string | undefined {
     return langAlias[ext] ?? ext
 }
 
+function getFileExtension(path: string): string {
+    const trimmed = path.trim()
+    if (trimmed.startsWith('.') && trimmed.indexOf('.', 1) === -1) {
+        return trimmed.slice(1).toLowerCase()
+    }
+    const parts = trimmed.split('.')
+    if (parts.length <= 1) return ''
+    return parts[parts.length - 1]?.toLowerCase() ?? ''
+}
+
+function getImageMimeType(path: string): string | null {
+    const ext = getFileExtension(path)
+    // Keep this list small and boring: common raster formats + SVG.
+    // We only use this to render a preview in <img>.
+    switch (ext) {
+        case 'png': return 'image/png'
+        case 'jpg':
+        case 'jpeg': return 'image/jpeg'
+        case 'gif': return 'image/gif'
+        case 'webp': return 'image/webp'
+        case 'bmp': return 'image/bmp'
+        case 'avif': return 'image/avif'
+        case 'ico': return 'image/x-icon'
+        case 'svg': return 'image/svg+xml'
+        default: return null
+    }
+}
+
 function isBinaryContent(content: string): boolean {
     if (!content) return false
     if (content.includes('\0')) return true
@@ -118,6 +146,13 @@ export default function FilePage() {
     const search = useSearch({ from: '/sessions/$sessionId/file' })
     const encodedPath = typeof search.path === 'string' ? search.path : ''
     const staged = search.staged
+    const [showDiff, setShowDiff] = useState<boolean>(() => {
+        return localStorage.getItem('hapi-files-show-diff') !== 'false'
+    })
+
+    useEffect(() => {
+        localStorage.setItem('hapi-files-show-diff', showDiff ? 'true' : 'false')
+    }, [showDiff])
 
     const filePath = useMemo(() => decodePath(encodedPath), [encodedPath])
     const fileName = filePath.split('/').pop() || filePath || 'File'
@@ -130,7 +165,7 @@ export default function FilePage() {
             }
             return await api.getGitDiffFile(sessionId, filePath, staged)
         },
-        enabled: Boolean(api && sessionId && filePath)
+        enabled: showDiff && Boolean(api && sessionId && filePath)
     })
 
     const fileQuery = useQuery({
@@ -158,12 +193,37 @@ export default function FilePage() {
         ? !decodedContentResult.ok || isBinaryContent(decodedContent)
         : false
 
+    const imageMimeType = useMemo(() => getImageMimeType(filePath), [filePath])
+    const imageDataUrl = useMemo(() => {
+        if (!imageMimeType) return null
+        if (!fileContentResult?.success || !fileContentResult.content) return null
+        return `data:${imageMimeType};base64,${fileContentResult.content}`
+    }, [fileContentResult, imageMimeType])
+
     const language = useMemo(() => resolveLanguage(filePath), [filePath])
     const highlighted = useShikiHighlighter(decodedContent, language)
 
-    const [displayMode, setDisplayMode] = useState<'diff' | 'file'>('diff')
+    const [displayMode, setDisplayMode] = useState<'diff' | 'file'>(() => (showDiff ? 'diff' : 'file'))
+    const [hasUserSelectedDisplayMode, setHasUserSelectedDisplayMode] = useState(false)
+
+    const setDisplayModeUser = (mode: 'diff' | 'file') => {
+        setHasUserSelectedDisplayMode(true)
+        setDisplayMode(mode)
+    }
 
     useEffect(() => {
+        if (!showDiff) {
+            setDisplayMode('file')
+            return
+        }
+
+        if (hasUserSelectedDisplayMode) return
+
+        // Prefer preview for images.
+        if (imageDataUrl) {
+            setDisplayMode('file')
+            return
+        }
         if (diffSuccess && !diffContent) {
             setDisplayMode('file')
             return
@@ -171,14 +231,14 @@ export default function FilePage() {
         if (diffFailed) {
             setDisplayMode('file')
         }
-    }, [diffSuccess, diffFailed, diffContent])
+    }, [diffSuccess, diffFailed, diffContent, hasUserSelectedDisplayMode, imageDataUrl, showDiff])
 
     const loading = diffQuery.isLoading || fileQuery.isLoading
     const fileError = fileContentResult && !fileContentResult.success
         ? (fileContentResult.error ?? 'Failed to read file')
         : null
     const missingPath = !filePath
-    const diffErrorMessage = diffError ? `Diff unavailable: ${diffError}` : null
+    const diffErrorMessage = showDiff && diffError ? `Diff unavailable: ${diffError}` : null
 
     return (
         <div className="flex h-full flex-col">
@@ -204,6 +264,17 @@ export default function FilePage() {
                     <span className="min-w-0 flex-1 truncate text-xs text-[var(--app-hint)]">{filePath}</span>
                     <button
                         type="button"
+                        onClick={() => setShowDiff((v) => !v)}
+                        className={`shrink-0 rounded px-2 py-1 text-[11px] font-semibold transition-colors ${showDiff
+                            ? 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)] hover:text-[var(--app-fg)]'
+                            : 'bg-[var(--app-button)] text-[var(--app-button-text)] opacity-80'
+                        }`}
+                        title="Toggle diff display"
+                    >
+                        Diff
+                    </button>
+                    <button
+                        type="button"
                         onClick={() => copy(filePath)}
                         className="shrink-0 rounded p-1 text-[var(--app-hint)] hover:bg-[var(--app-subtle-bg)] hover:text-[var(--app-fg)] transition-colors"
                         title="Copy path"
@@ -213,19 +284,19 @@ export default function FilePage() {
                 </div>
             </div>
 
-            {diffContent ? (
+            {showDiff && diffContent ? (
                 <div className="bg-[var(--app-bg)]">
                     <div className="mx-auto w-full max-w-content px-3 py-2 flex items-center gap-2 border-b border-[var(--app-divider)]">
                         <button
                             type="button"
-                            onClick={() => setDisplayMode('diff')}
+                            onClick={() => setDisplayModeUser('diff')}
                             className={`rounded px-3 py-1 text-xs font-semibold ${displayMode === 'diff' ? 'bg-[var(--app-button)] text-[var(--app-button-text)] opacity-80' : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'}`}
                         >
                             Diff
                         </button>
                         <button
                             type="button"
-                            onClick={() => setDisplayMode('file')}
+                            onClick={() => setDisplayModeUser('file')}
                             className={`rounded px-3 py-1 text-xs font-semibold ${displayMode === 'file' ? 'bg-[var(--app-button)] text-[var(--app-button-text)] opacity-80' : 'bg-[var(--app-subtle-bg)] text-[var(--app-hint)]'}`}
                         >
                             File
@@ -247,16 +318,32 @@ export default function FilePage() {
                         <FileContentSkeleton />
                     ) : fileError ? (
                         <div className="text-sm text-[var(--app-hint)]">{fileError}</div>
-                    ) : binaryFile ? (
-                        <div className="text-sm text-[var(--app-hint)]">
-                            This looks like a binary file. It cannot be displayed.
-                        </div>
-                    ) : displayMode === 'diff' && diffContent ? (
+                    ) : showDiff && displayMode === 'diff' && diffContent ? (
                         <DiffDisplay diffContent={diffContent} />
-                    ) : displayMode === 'diff' && diffError ? (
+                    ) : showDiff && displayMode === 'diff' && diffError ? (
                         <div className="text-sm text-[var(--app-hint)]">{diffError}</div>
                     ) : displayMode === 'file' ? (
-                        decodedContent ? (
+                        imageDataUrl ? (
+                            <div className="overflow-auto rounded-md border border-[var(--app-border)] bg-[var(--app-bg)] p-2">
+                                <a
+                                    href={imageDataUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="mb-2 inline-block text-xs text-[var(--app-hint)] hover:text-[var(--app-fg)] underline"
+                                >
+                                    Open image in new tab
+                                </a>
+                                <img
+                                    src={imageDataUrl}
+                                    alt={fileName}
+                                    className="h-auto max-w-full rounded-md"
+                                />
+                            </div>
+                        ) : binaryFile ? (
+                            <div className="text-sm text-[var(--app-hint)]">
+                                This looks like a binary file. It cannot be displayed.
+                            </div>
+                        ) : decodedContent ? (
                             <pre className="shiki overflow-auto rounded-md bg-[var(--app-code-bg)] p-3 text-xs font-mono">
                                 <code>{highlighted ?? decodedContent}</code>
                             </pre>

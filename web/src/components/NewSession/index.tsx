@@ -15,6 +15,7 @@ import { MachineSelector } from './MachineSelector'
 import { ModelSelector } from './ModelSelector'
 import { SessionTypeSelector } from './SessionTypeSelector'
 import { YoloToggle } from './YoloToggle'
+import { FileBrowser } from '@/components/FileBrowser'
 
 export function NewSession(props: {
     api: ApiClient
@@ -36,10 +37,11 @@ export function NewSession(props: {
     const [pathExistence, setPathExistence] = useState<Record<string, boolean>>({})
     const [agent, setAgent] = useState<AgentType>('claude')
     const [model, setModel] = useState('auto')
-    const [yoloMode, setYoloMode] = useState(false)
+    const [yoloMode, setYoloMode] = useState(true)
     const [sessionType, setSessionType] = useState<SessionType>('simple')
     const [worktreeName, setWorktreeName] = useState('')
     const [error, setError] = useState<string | null>(null)
+    const [isFileBrowserOpen, setIsFileBrowserOpen] = useState(false)
     const worktreeInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
@@ -190,6 +192,14 @@ export function NewSession(props: {
         }
     }, [suggestions, selectedIndex, moveUp, moveDown, clearSuggestions, handleSuggestionSelect])
 
+    const handleBrowseClick = useCallback(() => {
+        setIsFileBrowserOpen(true)
+    }, [])
+
+    const handleFileBrowserSelect = useCallback((path: string) => {
+        setDirectory(path)
+    }, [])
+
     async function handleCreate() {
         if (!machineId || !directory.trim()) return
 
@@ -245,6 +255,7 @@ export function NewSession(props: {
                 onDirectoryKeyDown={handleDirectoryKeyDown}
                 onSuggestionSelect={handleSuggestionSelect}
                 onPathClick={handlePathClick}
+                onBrowseClick={machineId ? handleBrowseClick : undefined}
             />
             <SessionTypeSelector
                 sessionType={sessionType}
@@ -284,6 +295,17 @@ export function NewSession(props: {
                 onCancel={props.onCancel}
                 onCreate={handleCreate}
             />
+
+            {machineId && (
+                <FileBrowser
+                    api={props.api}
+                    machineId={machineId}
+                    initialPath={directory}
+                    open={isFileBrowserOpen}
+                    onOpenChange={setIsFileBrowserOpen}
+                    onSelect={handleFileBrowserSelect}
+                />
+            )}
         </div>
     )
 }
