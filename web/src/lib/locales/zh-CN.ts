@@ -63,6 +63,9 @@ export default {
   'session.action.archive': '归档',
   'session.action.delete': '删除',
   'session.action.copy': '复制',
+  'session.action.resume': '恢复',
+  'session.action.resuming': '恢复中…',
+  'session.action.resumeFailed': '恢复会话失败',
 
   // Dialogs
   'dialog.rename.title': '重命名会话',

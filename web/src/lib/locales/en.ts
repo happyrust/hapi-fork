@@ -63,6 +63,9 @@ export default {
   'session.action.archive': 'Archive',
   'session.action.delete': 'Delete',
   'session.action.copy': 'Copy',
+  'session.action.resume': 'Resume',
+  'session.action.resuming': 'Resuming…',
+  'session.action.resumeFailed': 'Failed to resume session',
 
   // Dialogs
   'dialog.rename.title': 'Rename Session',

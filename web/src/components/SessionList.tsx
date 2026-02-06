@@ -4,6 +4,7 @@ import type { ApiClient } from '@/api/client'
 import { useLongPress } from '@/hooks/useLongPress'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
+import { useResumeSession } from '@/hooks/mutations/useResumeSession'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -164,12 +165,13 @@ function formatRelativeTime(value: number, t: (key: string, params?: Record<stri
 function SessionItem(props: {
     session: SessionSummary
     onSelect: (sessionId: string) => void
+    onResumeSuccess?: (newSessionId: string) => void
     showPath?: boolean
     api: ApiClient | null
     selected?: boolean
 }) {
     const { t } = useTranslation()
-    const { session: s, onSelect, showPath = true, api, selected = false } = props
+    const { session: s, onSelect, onResumeSuccess, showPath = true, api, selected = false } = props
     const { haptic } = usePlatform()
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -182,6 +184,22 @@ function SessionItem(props: {
         s.id,
         s.metadata?.flavor ?? null
     )
+
+    const { resumeSession, isPending: isResuming } = useResumeSession(api, s.id)
+
+    const handleResume = async () => {
+        try {
+            const newSessionId = await resumeSession()
+            setMenuOpen(false)
+            if (onResumeSuccess) {
+                onResumeSuccess(newSessionId)
+            } else {
+                onSelect(newSessionId)
+            }
+        } catch {
+            // Error is handled by the hook, menu stays open
+        }
+    }
 
     const longPressHandlers = useLongPress({
         onLongPress: (point) => {
@@ -273,6 +291,8 @@ function SessionItem(props: {
                 onRename={() => setRenameOpen(true)}
                 onArchive={() => setArchiveOpen(true)}
                 onDelete={() => setDeleteOpen(true)}
+                onResume={!s.active ? handleResume : undefined}
+                isResuming={isResuming}
                 anchorPoint={menuAnchorPoint}
             />
 
@@ -408,6 +428,7 @@ export function SessionList(props: {
                                             key={s.id}
                                             session={s}
                                             onSelect={props.onSelect}
+                                            onResumeSuccess={props.onSelect}
                                             showPath={false}
                                             api={api}
                                             selected={s.id === selectedSessionId}
