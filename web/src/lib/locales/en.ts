@@ -31,6 +31,7 @@ export default {
   'login.server.origin': 'Hub origin',
   'login.server.placeholder': 'https://hapi.example.com',
   'login.server.hint': 'Use http(s) only. Any path is ignored.',
+  'login.server.required': 'Hub URL required. Please set it before signing in.',
   'login.server.useSameOrigin': 'Use same origin',
   'login.server.save': 'Save hub',
   'login.footer': 'Designed with',
@@ -236,6 +237,11 @@ export default {
   'offline.message': 'You are currently offline. Some features may be limited.',
   'syncing.title': 'Syncing…',
   'syncing.message': 'Your data is being synchronized.',
+  'reconnecting.message': 'Reconnecting...',
+
+  // Send blocked
+  'send.blocked.title': 'Cannot send message',
+  'send.blocked.noConnection': 'Not connected to server',
 
   // Install prompt
   'install.title': 'Install HAPI',

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Outlet, useLocation, useMatchRoute, useRouter } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { getTelegramWebApp, isTelegramApp } from '@/hooks/useTelegram'
@@ -16,10 +16,12 @@ import { fetchLatestMessages } from '@/lib/message-window-store'
 import { useAppGoBack } from '@/hooks/useAppGoBack'
 import { useTranslation } from '@/lib/use-translation'
 import { VoiceProvider } from '@/lib/voice-context'
+import { requireHubUrlForLogin } from '@/lib/runtime-config'
 import { LoginPrompt } from '@/components/LoginPrompt'
 import { InstallPrompt } from '@/components/InstallPrompt'
 import { OfflineBanner } from '@/components/OfflineBanner'
 import { SyncingBanner } from '@/components/SyncingBanner'
+import { ReconnectingBanner } from '@/components/ReconnectingBanner'
 import { VoiceErrorBanner } from '@/components/VoiceErrorBanner'
 import { LoadingState } from '@/components/LoadingState'
 import { ToastContainer } from '@/components/ToastContainer'
@@ -27,6 +29,8 @@ import { ToastProvider, useToast } from '@/lib/toast-context'
 import type { SyncEvent } from '@/types/api'
 
 type ToastEvent = Extract<SyncEvent, { type: 'toast' }>
+
+const REQUIRE_SERVER_URL = requireHubUrlForLogin()
 
 export function App() {
     return (
@@ -112,6 +116,7 @@ function AppInner() {
     const sessionMatch = matchRoute({ to: '/sessions/$sessionId' })
     const selectedSessionId = sessionMatch ? sessionMatch.sessionId : null
     const { isSyncing, startSync, endSync } = useSyncingState()
+    const [sseDisconnected, setSseDisconnected] = useState(false)
     const syncTokenRef = useRef(0)
     const isFirstConnectRef = useRef(true)
     const baseUrlRef = useRef(baseUrl)
@@ -174,6 +179,9 @@ function AppInner() {
     }, [api, isPushSupported, pushPermission, requestPermission, subscribe, token])
 
     const handleSseConnect = useCallback(() => {
+        // Clear disconnected state on successful connection
+        setSseDisconnected(false)
+
         // Increment token to track this specific connection
         const token = ++syncTokenRef.current
 
@@ -207,6 +215,13 @@ function AppInner() {
             })
     }, [api, queryClient, selectedSessionId, startSync, endSync])
 
+    const handleSseDisconnect = useCallback(() => {
+        // Only show reconnecting banner if we've already connected once
+        if (!isFirstConnectRef.current) {
+            setSseDisconnected(true)
+        }
+    }, [])
+
     const handleSseEvent = useCallback(() => {}, [])
     const handleToast = useCallback((event: ToastEvent) => {
         addToast({
@@ -230,6 +245,7 @@ function AppInner() {
         baseUrl,
         subscription: eventSubscription,
         onConnect: handleSseConnect,
+        onDisconnect: handleSseDisconnect,
         onEvent: handleSseEvent,
         onToast: handleToast
     })
@@ -258,6 +274,7 @@ function AppInner() {
                 serverUrl={serverUrl}
                 setServerUrl={setServerUrl}
                 clearServerUrl={clearServerUrl}
+                requireServerUrl={REQUIRE_SERVER_URL}
             />
         )
     }
@@ -271,6 +288,7 @@ function AppInner() {
                 serverUrl={serverUrl}
                 setServerUrl={setServerUrl}
                 clearServerUrl={clearServerUrl}
+                requireServerUrl={REQUIRE_SERVER_URL}
                 error={authError ?? undefined}
             />
         )
@@ -296,6 +314,7 @@ function AppInner() {
                     serverUrl={serverUrl}
                     setServerUrl={setServerUrl}
                     clearServerUrl={clearServerUrl}
+                    requireServerUrl={REQUIRE_SERVER_URL}
                     error={authError ?? t('login.error.authFailed')}
                 />
             )
@@ -319,6 +338,7 @@ function AppInner() {
         <AppContextProvider value={{ api, token, baseUrl }}>
             <VoiceProvider>
                 <SyncingBanner isSyncing={isSyncing} />
+                <ReconnectingBanner isReconnecting={sseDisconnected && !isSyncing} />
                 <VoiceErrorBanner />
                 <OfflineBanner />
                 <div className="h-full flex flex-col">

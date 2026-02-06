@@ -31,6 +31,7 @@ export default {
   'login.server.origin': '服务器地址',
   'login.server.placeholder': 'https://hapi.example.com',
   'login.server.hint': '仅使用 http(s) 协议。任何路径将被忽略。',
+  'login.server.required': '必须先填写服务器地址才能登录。',
   'login.server.useSameOrigin': '使用同源',
   'login.server.save': '保存',
   'login.footer': '用',
@@ -238,6 +239,11 @@ export default {
   'offline.message': '您当前处于离线状态。某些功能可能受限。',
   'syncing.title': '同步中…',
   'syncing.message': '正在同步您的数据。',
+  'reconnecting.message': '正在重新连接...',
+
+  // Send blocked
+  'send.blocked.title': '无法发送消息',
+  'send.blocked.noConnection': '未连接到服务器',
 
   // Install prompt
   'install.title': '安装 HAPI',

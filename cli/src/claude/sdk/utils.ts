@@ -6,36 +6,90 @@
 import { spawn, execSync, type ChildProcess, type ExecSyncOptionsWithStringEncoding } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { join, dirname } from 'node:path'
+import { homedir } from 'node:os'
 import { logger } from '@/ui/logger'
 import type { Writable } from 'node:stream'
 
 /**
+ * Find Claude executable path on Windows.
+ * Returns absolute path to claude.exe for use with shell: false
+ */
+function findWindowsClaudePath(): string | null {
+    const homeDir = homedir()
+    const path = require('node:path')
+
+    // Known installation paths for Claude on Windows
+    const candidates = [
+        path.join(homeDir, '.local', 'bin', 'claude.exe'),
+        path.join(homeDir, 'AppData', 'Local', 'Programs', 'claude', 'claude.exe'),
+        path.join(homeDir, 'AppData', 'Local', 'Microsoft', 'WinGet', 'Packages', 'Anthropic.claude-code_Microsoft.Winget.Source_8wekyb3d8bbwe', 'claude.exe'),
+    ]
+
+    for (const candidate of candidates) {
+        if (existsSync(candidate)) {
+            logger.debug(`[Claude SDK] Found Windows claude.exe at: ${candidate}`)
+            return candidate
+        }
+    }
+
+    // Try 'where claude' to find in PATH
+    try {
+        const result = execSync('where claude.exe', {
+            encoding: 'utf8',
+            stdio: ['pipe', 'pipe', 'pipe'],
+            cwd: homeDir
+        }).trim().split('\n')[0].trim()
+        if (result && existsSync(result)) {
+            logger.debug(`[Claude SDK] Found Windows claude.exe via where: ${result}`)
+            return result
+        }
+    } catch {
+        // where didn't find it
+    }
+
+    return null
+}
+
+/**
  * Try to find globally installed Claude CLI
- * Returns 'claude' if the command works globally (preferred method for reliability)
+ * On Windows: Returns absolute path to claude.exe (for shell: false)
+ * On Unix: Returns 'claude' if command works, or actual path via which
+ * Runs from home directory to avoid local cwd side effects
  */
 function findGlobalClaudePath(): string | null {
-    // PRIMARY: Check if 'claude' command works directly from home dir
+    const homeDir = homedir()
+
+    // Windows: Always return absolute path for shell: false compatibility
+    if (process.platform === 'win32') {
+        return findWindowsClaudePath()
+    }
+
+    // Unix: Check if 'claude' command works directly from home dir
     try {
         execSync('claude --version', {
-            stdio: 'ignore',
-            timeout: 1000,
-            encoding: 'utf-8'
-        } as any)
+            encoding: 'utf8',
+            stdio: ['pipe', 'pipe', 'pipe'],
+            cwd: homeDir
+        })
+        logger.debug('[Claude SDK] Global claude command available')
         return 'claude'
     } catch (e) {
         // Ignore
     }
 
-    // claude command not available globally
-    // Try to find it via which/where
+    // FALLBACK for Unix: try which to get actual path
     try {
-        const command = process.platform === 'win32' ? 'where claude' : 'which claude'
-        const result = execSync(command, { encoding: 'utf-8' } as any).trim().split('\r\n')[0].split('\n')[0];
-        if (result && existsSync(result.trim())) {
-            return result.trim()
+        const result = execSync('which claude', {
+            encoding: 'utf8',
+            stdio: ['pipe', 'pipe', 'pipe'],
+            cwd: homeDir
+        }).trim()
+        if (result && existsSync(result)) {
+            logger.debug(`[Claude SDK] Found global claude path via which: ${result}`)
+            return result
         }
-    } catch (e) {
-        // Ignore
+    } catch {
+        // which didn't find it
     }
 
     return null

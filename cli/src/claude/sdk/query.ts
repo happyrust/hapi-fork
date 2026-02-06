@@ -23,7 +23,6 @@ import {
     AbortError
 } from './types'
 import { getDefaultClaudeCodePath, logDebug, streamToStdin } from './utils'
-import { resolveClaudeSpawn } from './spawn'
 import { withBunRuntimeEnv } from '@/utils/bunRuntime'
 import { killProcessByChildProcess } from '@/utils/process'
 import { stripNewlinesForWindowsShellArg } from '@/utils/shellEscape'
@@ -336,19 +335,19 @@ export function query(config: {
 
     const spawnArgs = args
     cleanupMcpConfig = appendMcpConfigArg(spawnArgs, mcpServers)
-    const resolved = resolveClaudeSpawn(pathToClaudeCodeExecutable, spawnArgs)
 
     // Spawn Claude Code process
     const spawnEnv = withBunRuntimeEnv(process.env, { allowBunBeBun: false })
-    logDebug(`Spawning Claude Code process: ${resolved.command} ${resolved.args.join(' ')}`)
+    logDebug(`Spawning Claude Code process: ${pathToClaudeCodeExecutable} ${spawnArgs.join(' ')}`)
 
-    const child = spawn(resolved.command, resolved.args, {
+    const child = spawn(pathToClaudeCodeExecutable, spawnArgs, {
         cwd,
         stdio: ['pipe', 'pipe', 'pipe'],
         signal: config.options?.abort,
         env: spawnEnv,
-        // Use shell on Windows for command resolution
-        shell: resolved.shell
+        // Use shell: false with absolute path from getDefaultClaudeCodePath()
+        // This avoids cmd.exe resolution issues on Windows
+        shell: false
     }) as ChildProcessWithoutNullStreams
 
     // Handle stdin
