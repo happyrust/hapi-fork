@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 - Merged upstream tiann/hapi v0.15.1
 
 ### Fixed
+- Claude Code schema validation: remove invalid `enabled` field from hook settings
 - Windows compatibility: use absolute path with `shell: false` for Claude spawn
 
 ## [0.15.1] - 2026-02-06
