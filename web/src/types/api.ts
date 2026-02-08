@@ -113,6 +113,19 @@ export type FileSearchResponse = {
     error?: string
 }
 
+export type DirectoryEntry = {
+    name: string
+    type: 'file' | 'directory' | 'other'
+    size?: number
+    modified?: number
+}
+
+export type ListDirectoryResponse = {
+    success: boolean
+    entries?: DirectoryEntry[]
+    error?: string
+}
+
 export type FileReadResponse = {
     success: boolean
     content?: string
@@ -152,8 +165,9 @@ export type GitStatusFiles = {
 export type SlashCommand = {
     name: string
     description?: string
-    source: 'builtin' | 'user'
+    source: 'builtin' | 'user' | 'plugin'
     content?: string  // Expanded content for Codex user prompts
+    pluginName?: string
 }
 
 export type SlashCommandsResponse = {

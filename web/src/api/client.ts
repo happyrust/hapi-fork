@@ -3,6 +3,7 @@ import type {
     AuthResponse,
     BrowseDirectoryResponse,
     DeleteUploadResponse,
+    ListDirectoryResponse,
     FileReadResponse,
     FileSearchResponse,
     GitCommandResponse,
@@ -238,6 +239,18 @@ export class ApiClient {
         const params = new URLSearchParams()
         params.set('path', path)
         return await this.request<FileReadResponse>(`/api/sessions/${encodeURIComponent(sessionId)}/file?${params.toString()}`)
+    }
+
+    async listSessionDirectory(sessionId: string, path?: string): Promise<ListDirectoryResponse> {
+        const params = new URLSearchParams()
+        if (path) {
+            params.set('path', path)
+        }
+
+        const qs = params.toString()
+        return await this.request<ListDirectoryResponse>(
+            `/api/sessions/${encodeURIComponent(sessionId)}/directory${qs ? `?${qs}` : ''}`
+        )
     }
 
     async uploadFile(sessionId: string, filename: string, content: string, mimeType: string): Promise<UploadFileResponse> {
