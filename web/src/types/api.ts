@@ -113,13 +113,6 @@ export type FileSearchResponse = {
     error?: string
 }
 
-export type DirectoryEntry = {
-    name: string
-    type: 'file' | 'directory' | 'other'
-    size?: number
-    modified?: number
-}
-
 export type ListDirectoryResponse = {
     success: boolean
     entries?: DirectoryEntry[]
