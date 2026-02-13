@@ -9,10 +9,8 @@ export const MODEL_OPTIONS: Record<AgentType, { value: string; label: string }[]
     ],
     codex: [
         { value: 'auto', label: 'Auto' },
-        { value: 'gpt-5.2-codex', label: 'GPT-5.2 Codex' },
-        { value: 'gpt-5.2', label: 'GPT-5.2' },
-        { value: 'gpt-5.1-codex-max', label: 'GPT-5.1 Codex Max' },
-        { value: 'gpt-5.1-codex-mini', label: 'GPT-5.1 Codex Mini' },
+        { value: 'gpt-5.3-codex-spark', label: 'GPT-5.3 Codex Spark' },
+        { value: 'codex-5.3', label: 'Codex 5.3' },
     ],
     gemini: [
         { value: 'auto', label: 'Auto' },
