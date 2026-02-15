@@ -277,6 +277,10 @@ export class SyncEngine {
         await this.sessionCache.deleteSession(sessionId)
     }
 
+    forkSession(sessionId: string, namespace: string): string {
+        return this.sessionCache.forkSession(sessionId, namespace)
+    }
+
     async applySessionConfig(
         sessionId: string,
         config: {
@@ -341,10 +345,6 @@ export class SyncEngine {
                     ? metadata.opencodeSessionId
                     : metadata.claudeSessionId
 
-        if (!resumeToken) {
-            return { type: 'error', message: 'Resume session ID unavailable', code: 'resume_unavailable' }
-        }
-
         const onlineMachines = this.machineCache.getOnlineMachinesByNamespace(namespace)
         if (onlineMachines.length === 0) {
             return { type: 'error', message: 'No machine online', code: 'no_machine_online' }
@@ -366,16 +366,32 @@ export class SyncEngine {
             return { type: 'error', message: 'No machine online', code: 'no_machine_online' }
         }
 
-        const spawnResult = await this.rpcGateway.spawnSession(
-            targetMachine.id,
-            metadata.path,
-            flavor,
-            undefined,
-            undefined,
-            undefined,
-            undefined,
-            resumeToken
-        )
+        // If no resume token available, spawn a fresh session instead of failing.
+        // This is common for codex sessions where codexSessionId is not written back.
+        const forkModel = metadata.forkModelMode || undefined
+        const forkYolo = metadata.forkPermissionMode === 'bypassPermissions'
+            || metadata.forkPermissionMode === 'yolo'
+            || metadata.forkPermissionMode === 'safe-yolo'
+            || undefined
+
+        const spawnResult = resumeToken
+            ? await this.rpcGateway.spawnSession(
+                targetMachine.id,
+                metadata.path,
+                flavor,
+                forkModel,
+                forkYolo,
+                undefined,
+                undefined,
+                resumeToken
+            )
+            : await this.rpcGateway.spawnSession(
+                targetMachine.id,
+                metadata.path,
+                flavor,
+                forkModel,
+                forkYolo
+            )
 
         if (spawnResult.type !== 'success') {
             return { type: 'error', message: spawnResult.message, code: 'resume_failed' }
@@ -384,6 +400,22 @@ export class SyncEngine {
         const becameActive = await this.waitForSessionActive(spawnResult.sessionId)
         if (!becameActive) {
             return { type: 'error', message: 'Session failed to become active', code: 'resume_failed' }
+        }
+
+        // Apply forked model/permission config to the newly spawned session
+        if (metadata.forkPermissionMode || metadata.forkModelMode) {
+            try {
+                const config: { permissionMode?: PermissionMode; modelMode?: ModelMode } = {}
+                if (metadata.forkPermissionMode) {
+                    config.permissionMode = metadata.forkPermissionMode as PermissionMode
+                }
+                if (metadata.forkModelMode) {
+                    config.modelMode = metadata.forkModelMode as ModelMode
+                }
+                await this.applySessionConfig(spawnResult.sessionId, config)
+            } catch {
+                // Config apply failure should not block resume
+            }
         }
 
         if (spawnResult.sessionId !== access.sessionId) {

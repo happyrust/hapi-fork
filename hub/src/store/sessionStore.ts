@@ -2,6 +2,7 @@ import type { Database } from 'bun:sqlite'
 
 import type { StoredSession, VersionedUpdateResult } from './types'
 import {
+    createSessionForFork,
     deleteSession,
     getOrCreateSession,
     getSession,
@@ -22,6 +23,16 @@ export class SessionStore {
 
     getOrCreateSession(tag: string, metadata: unknown, agentState: unknown, namespace: string): StoredSession {
         return getOrCreateSession(this.db, tag, metadata, agentState, namespace)
+    }
+
+    createSessionForFork(options: {
+        namespace: string
+        metadata: unknown | null
+        agentState: unknown | null
+        todos: unknown | null
+        todosUpdatedAt: number | null
+    }): StoredSession {
+        return createSessionForFork(this.db, options)
     }
 
     updateSessionMetadata(

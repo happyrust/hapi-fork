@@ -168,8 +168,13 @@ export async function readRunnerState(): Promise<RunnerLocallyPersistedState | n
     const content = await readFile(configuration.runnerStateFile, 'utf-8');
     return JSON.parse(content) as RunnerLocallyPersistedState;
   } catch (error) {
-    // State corrupted somehow :(
-    console.error(`[PERSISTENCE] Runner state file corrupted: ${configuration.runnerStateFile}`, error);
+    // State corrupted somehow - clean up the bad file so it doesn't keep causing errors
+    console.error(`[PERSISTENCE] Runner state file corrupted, removing: ${configuration.runnerStateFile}`, error);
+    try {
+      await unlink(configuration.runnerStateFile);
+    } catch {
+      // Ignore cleanup errors
+    }
     return null;
   }
 }

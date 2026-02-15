@@ -87,6 +87,223 @@ export class AppServerEventConverter {
         const events: ConvertedEvent[] = [];
         const paramsRecord = asRecord(params) ?? {};
 
+        // Handle codex/event/* prefixed notifications by unwrapping the inner msg
+        if (method.startsWith('codex/event/')) {
+            const msg = asRecord(paramsRecord.msg);
+            if (!msg) {
+                logger.debug('[AppServerEventConverter] codex/event/* notification without msg', { method, params });
+                return events;
+            }
+
+            const msgType = asString(msg.type);
+            if (!msgType) {
+                return events;
+            }
+
+            // Map codex/event/* inner msg types to standard events
+            if (msgType === 'thread_started') {
+                const threadId = asString(msg.thread_id ?? msg.threadId);
+                if (threadId) {
+                    events.push({ type: 'thread_started', thread_id: threadId });
+                }
+                return events;
+            }
+
+            if (msgType === 'task_started') {
+                const turnId = asString(msg.turn_id ?? msg.turnId);
+                const contextWindow = asNumber(msg.model_context_window ?? msg.modelContextWindow);
+                const collabMode = asString(msg.collaboration_mode_kind ?? msg.collaborationModeKind);
+                events.push({
+                    type: 'task_started',
+                    ...(turnId ? { turn_id: turnId } : {}),
+                    ...(contextWindow ? { model_context_window: contextWindow } : {}),
+                    ...(collabMode ? { collaboration_mode_kind: collabMode } : {})
+                });
+                return events;
+            }
+
+            if (msgType === 'task_complete') {
+                const turnId = asString(msg.turn_id ?? msg.turnId);
+                events.push({ type: 'task_complete', ...(turnId ? { turn_id: turnId } : {}) });
+                return events;
+            }
+
+            if (msgType === 'task_failed') {
+                const turnId = asString(msg.turn_id ?? msg.turnId);
+                const error = asString(msg.error ?? msg.message);
+                events.push({ type: 'task_failed', ...(turnId ? { turn_id: turnId } : {}), ...(error ? { error } : {}) });
+                return events;
+            }
+
+            if (msgType === 'turn_aborted') {
+                const turnId = asString(msg.turn_id ?? msg.turnId);
+                events.push({ type: 'turn_aborted', ...(turnId ? { turn_id: turnId } : {}) });
+                return events;
+            }
+
+            if (msgType === 'error') {
+                const rawMessage = asString(msg.message);
+                let errorMessage = rawMessage;
+                // The error message may be a JSON string with a "detail" field
+                if (rawMessage) {
+                    try {
+                        const parsed = JSON.parse(rawMessage);
+                        if (parsed && typeof parsed === 'object' && typeof parsed.detail === 'string') {
+                            errorMessage = parsed.detail;
+                        }
+                    } catch {
+                        // Not JSON, use as-is
+                    }
+                }
+                const errorInfo = asString(msg.codex_error_info ?? msg.codexErrorInfo);
+                if (errorMessage) {
+                    events.push({
+                        type: 'task_failed',
+                        error: errorMessage,
+                        ...(errorInfo ? { codex_error_info: errorInfo } : {})
+                    });
+                }
+                return events;
+            }
+
+            if (msgType === 'agent_message') {
+                const message = asString(msg.message);
+                if (message) {
+                    events.push({ type: 'agent_message', message });
+                }
+                return events;
+            }
+
+            if (msgType === 'agent_reasoning') {
+                const text = asString(msg.text);
+                if (text) {
+                    events.push({ type: 'agent_reasoning', text });
+                }
+                return events;
+            }
+
+            if (msgType === 'agent_reasoning_delta') {
+                const delta = asString(msg.delta);
+                if (delta) {
+                    events.push({ type: 'agent_reasoning_delta', delta });
+                }
+                return events;
+            }
+
+            if (msgType === 'agent_reasoning_section_break') {
+                events.push({ type: 'agent_reasoning_section_break' });
+                return events;
+            }
+
+            if (msgType === 'user_message') {
+                // User message echo, no action needed
+                return events;
+            }
+
+            if (msgType === 'exec_command_begin') {
+                const callId = asString(msg.call_id ?? msg.callId);
+                if (callId) {
+                    const command = extractCommand(msg.command ?? msg.cmd);
+                    const cwd = asString(msg.cwd);
+                    const autoApproved = asBoolean(msg.auto_approved ?? msg.autoApproved);
+                    const meta: Record<string, unknown> = {};
+                    if (command) meta.command = command;
+                    if (cwd) meta.cwd = cwd;
+                    if (autoApproved !== null) meta.auto_approved = autoApproved;
+                    this.commandMeta.set(callId, meta);
+                    events.push({ type: 'exec_command_begin', call_id: callId, ...meta });
+                }
+                return events;
+            }
+
+            if (msgType === 'exec_command_end') {
+                const callId = asString(msg.call_id ?? msg.callId);
+                if (callId) {
+                    const meta = this.commandMeta.get(callId) ?? {};
+                    const output = asString(msg.output ?? msg.stdout);
+                    const stderr = asString(msg.stderr);
+                    const error = asString(msg.error);
+                    const exitCode = asNumber(msg.exit_code ?? msg.exitCode);
+                    events.push({
+                        type: 'exec_command_end',
+                        call_id: callId,
+                        ...meta,
+                        ...(output ? { output } : {}),
+                        ...(stderr ? { stderr } : {}),
+                        ...(error ? { error } : {}),
+                        ...(exitCode !== null ? { exit_code: exitCode } : {})
+                    });
+                    this.commandMeta.delete(callId);
+                    this.commandOutputBuffers.delete(callId);
+                }
+                return events;
+            }
+
+            if (msgType === 'exec_approval_request') {
+                const callId = asString(msg.call_id ?? msg.callId);
+                if (callId) {
+                    events.push({ type: 'exec_approval_request', call_id: callId, ...msg });
+                }
+                return events;
+            }
+
+            if (msgType === 'patch_apply_begin') {
+                const callId = asString(msg.call_id ?? msg.callId);
+                if (callId) {
+                    const changes = extractChanges(msg.changes);
+                    const autoApproved = asBoolean(msg.auto_approved ?? msg.autoApproved);
+                    const meta: Record<string, unknown> = {};
+                    if (changes) meta.changes = changes;
+                    if (autoApproved !== null) meta.auto_approved = autoApproved;
+                    this.fileChangeMeta.set(callId, meta);
+                    events.push({ type: 'patch_apply_begin', call_id: callId, ...meta });
+                }
+                return events;
+            }
+
+            if (msgType === 'patch_apply_end') {
+                const callId = asString(msg.call_id ?? msg.callId);
+                if (callId) {
+                    const meta = this.fileChangeMeta.get(callId) ?? {};
+                    const stdout = asString(msg.stdout ?? msg.output);
+                    const stderr = asString(msg.stderr);
+                    const success = asBoolean(msg.success ?? msg.ok ?? msg.applied);
+                    events.push({
+                        type: 'patch_apply_end',
+                        call_id: callId,
+                        ...meta,
+                        ...(stdout ? { stdout } : {}),
+                        ...(stderr ? { stderr } : {}),
+                        success: success ?? false
+                    });
+                    this.fileChangeMeta.delete(callId);
+                }
+                return events;
+            }
+
+            if (msgType === 'turn_diff') {
+                const diff = asString(msg.unified_diff ?? msg.unifiedDiff ?? msg.diff);
+                if (diff) {
+                    events.push({ type: 'turn_diff', unified_diff: diff });
+                }
+                return events;
+            }
+
+            if (msgType === 'token_count') {
+                events.push({ type: 'token_count', ...msg });
+                return events;
+            }
+
+            // Known informational events that don't need conversion
+            if (msgType === 'mcp_startup_update' || msgType === 'mcp_startup_complete' ||
+                msgType === 'item_started' || msgType === 'item_completed') {
+                return events;
+            }
+
+            logger.debug('[AppServerEventConverter] Unhandled codex/event/* msg type', { msgType, method });
+            return events;
+        }
+
         if (method === 'thread/started' || method === 'thread/resumed') {
             const thread = asRecord(paramsRecord.thread) ?? paramsRecord;
             const threadId = asString(thread.threadId ?? thread.thread_id ?? thread.id);

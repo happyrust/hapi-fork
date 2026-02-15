@@ -113,6 +113,36 @@ export function getMaxSeq(db: Database, sessionId: string): number {
     return row?.maxSeq ?? 0
 }
 
+export function copySessionMessages(
+    db: Database,
+    fromSessionId: string,
+    toSessionId: string
+): number {
+    const rows = db.prepare(
+        'SELECT * FROM messages WHERE session_id = ? ORDER BY seq ASC'
+    ).all(fromSessionId) as DbMessageRow[]
+
+    if (rows.length === 0) return 0
+
+    const stmt = db.prepare(`
+        INSERT INTO messages (id, session_id, content, created_at, seq, local_id)
+        VALUES (@id, @session_id, @content, @created_at, @seq, @local_id)
+    `)
+
+    for (const row of rows) {
+        stmt.run({
+            id: randomUUID(),
+            session_id: toSessionId,
+            content: row.content,
+            created_at: row.created_at,
+            seq: row.seq,
+            local_id: null
+        })
+    }
+
+    return rows.length
+}
+
 export function mergeSessionMessages(
     db: Database,
     fromSessionId: string,

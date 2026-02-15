@@ -3,6 +3,7 @@ import type { Session } from '@/types/api'
 import type { ApiClient } from '@/api/client'
 import { isTelegramApp } from '@/hooks/useTelegram'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
+import { useForkSession } from '@/hooks/mutations/useForkSession'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -65,9 +66,11 @@ export function SessionHeader(props: {
     onViewFiles?: () => void
     api: ApiClient | null
     onSessionDeleted?: () => void
+    onForkSuccess?: (newSessionId: string) => void
+    onNewSession?: () => void
 }) {
     const { t } = useTranslation()
-    const { session, api, onSessionDeleted } = props
+    const { session, api, onSessionDeleted, onForkSuccess, onNewSession } = props
     const title = useMemo(() => getSessionTitle(session), [session])
     const worktreeBranch = session.metadata?.worktree?.branch
 
@@ -84,6 +87,22 @@ export function SessionHeader(props: {
         session.id,
         session.metadata?.flavor ?? null
     )
+    const { forkSession, isPending: isForking } = useForkSession(api, session.id)
+
+    const handleFork = async () => {
+        try {
+            const newSessionId = await forkSession()
+            setMenuOpen(false)
+            onForkSuccess?.(newSessionId)
+        } catch {
+            // Error handled by hook
+        }
+    }
+
+    const handleNewSession = () => {
+        setMenuOpen(false)
+        onNewSession?.()
+    }
 
     const handleDelete = async () => {
         await deleteSession()
@@ -181,6 +200,9 @@ export function SessionHeader(props: {
                 onRename={() => setRenameOpen(true)}
                 onArchive={() => setArchiveOpen(true)}
                 onDelete={() => setDeleteOpen(true)}
+                onFork={handleFork}
+                isForking={isForking}
+                onNewSession={onNewSession ? handleNewSession : undefined}
                 anchorPoint={menuAnchorPoint}
                 menuId={menuId}
             />

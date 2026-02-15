@@ -10,6 +10,7 @@ import {
     useMatchRoute,
     useNavigate,
     useParams,
+    useSearch,
 } from '@tanstack/react-router'
 import { App } from '@/App'
 import { SessionChat } from '@/components/SessionChat'
@@ -156,6 +157,7 @@ function SessionsPage() {
                             params: { sessionId },
                         })}
                         onNewSession={() => navigate({ to: '/sessions/new' })}
+                        onNewSessionFromMenu={() => navigate({ to: '/sessions/new', search: { yolo: '1' } })}
                         onRefresh={handleRefresh}
                         isLoading={isLoading}
                         renderHeader={false}
@@ -332,6 +334,7 @@ function NewSessionPage() {
     const goBack = useAppGoBack()
     const queryClient = useQueryClient()
     const { machines, isLoading: machinesLoading, error: machinesError } = useMachines(api, true)
+    const { yolo: yoloParam } = useSearch({ from: '/sessions/new' })
 
     const handleCancel = useCallback(() => {
         navigate({ to: '/sessions' })
@@ -377,6 +380,7 @@ function NewSessionPage() {
                 isLoading={machinesLoading}
                 onCancel={handleCancel}
                 onSuccess={handleSuccess}
+                initialYolo={yoloParam === '1'}
             />
         </div>
     )
@@ -471,6 +475,10 @@ const sessionFileRoute = createRoute({
 const newSessionRoute = createRoute({
     getParentRoute: () => sessionsRoute,
     path: 'new',
+    validateSearch: (search: Record<string, unknown>): { yolo?: string } => {
+        const yolo = typeof search.yolo === 'string' ? search.yolo : undefined
+        return yolo ? { yolo } : {}
+    },
     component: NewSessionPage,
 })
 

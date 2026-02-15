@@ -95,6 +95,61 @@ export function getOrCreateSession(
     return row
 }
 
+export function createSessionForFork(
+    db: Database,
+    options: {
+        namespace: string
+        metadata: unknown | null
+        agentState: unknown | null
+        todos: unknown | null
+        todosUpdatedAt: number | null
+    }
+): StoredSession {
+    const now = Date.now()
+    const id = randomUUID()
+
+    const metadataJson = options.metadata === null || options.metadata === undefined
+        ? null
+        : JSON.stringify(options.metadata)
+    const agentStateJson = options.agentState === null || options.agentState === undefined
+        ? null
+        : JSON.stringify(options.agentState)
+    const todosJson = options.todos === null || options.todos === undefined
+        ? null
+        : JSON.stringify(options.todos)
+
+    db.prepare(`
+        INSERT INTO sessions (
+            id, tag, namespace, machine_id, created_at, updated_at,
+            metadata, metadata_version,
+            agent_state, agent_state_version,
+            todos, todos_updated_at,
+            active, active_at, seq
+        ) VALUES (
+            @id, NULL, @namespace, NULL, @created_at, @updated_at,
+            @metadata, 1,
+            @agent_state, 1,
+            @todos, @todos_updated_at,
+            0, NULL, 0
+        )
+    `).run({
+        id,
+        namespace: options.namespace,
+        created_at: now,
+        updated_at: now,
+        metadata: metadataJson,
+        agent_state: agentStateJson,
+        todos: todosJson,
+        todos_updated_at: options.todosUpdatedAt
+    })
+
+    const row = getSession(db, id)
+    if (!row) {
+        throw new Error('Failed to create session')
+    }
+    return row
+}
+
 export function updateSessionMetadata(
     db: Database,
     id: string,

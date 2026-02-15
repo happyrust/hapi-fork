@@ -83,6 +83,27 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
         return c.json({ session: sessionResult.session })
     })
 
+    app.post('/sessions/:id/fork', (c) => {
+        const engine = requireSyncEngine(c, getSyncEngine)
+        if (engine instanceof Response) {
+            return engine
+        }
+
+        const sessionResult = requireSessionFromParam(c, engine)
+        if (sessionResult instanceof Response) {
+            return sessionResult
+        }
+
+        try {
+            const namespace = c.get('namespace')
+            const newSessionId = engine.forkSession(sessionResult.sessionId, namespace)
+            return c.json({ type: 'success', sessionId: newSessionId })
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Failed to fork session'
+            return c.json({ error: message }, 500)
+        }
+    })
+
     app.post('/sessions/:id/resume', async (c) => {
         const engine = requireSyncEngine(c, getSyncEngine)
         if (engine instanceof Response) {
@@ -100,7 +121,8 @@ export function createSessionsRoutes(getSyncEngine: () => SyncEngine | null): Ho
             const status = result.code === 'no_machine_online' ? 503
                 : result.code === 'access_denied' ? 403
                     : result.code === 'session_not_found' ? 404
-                        : 500
+                        : result.code === 'resume_unavailable' ? 409
+                            : 500
             return c.json({ error: result.message, code: result.code }, status)
         }
 

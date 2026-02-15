@@ -47,7 +47,7 @@ export async function loop(opts: LoopOptions) {
     const startingMode = opts.startingMode ?? 'local';
     const modelMode: SessionModelMode = opts.model === 'sonnet' || opts.model === 'opus'
         ? opts.model
-        : 'default';
+        : 'opus';
     const session = new Session({
         api: opts.api,
         client: opts.session,

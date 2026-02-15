@@ -272,6 +272,12 @@ export function SessionChat(props: {
                 onViewFiles={props.session.metadata?.path ? handleViewFiles : undefined}
                 api={props.api}
                 onSessionDeleted={props.onBack}
+                onForkSuccess={(newSessionId) => {
+                    navigate({ to: '/sessions/$sessionId', params: { sessionId: newSessionId } })
+                }}
+                onNewSession={() => {
+                    navigate({ to: '/sessions/new', search: { yolo: '1' } })
+                }}
             />
 
             {sessionInactive ? (

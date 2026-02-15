@@ -67,6 +67,10 @@ export default {
   'session.action.resume': 'Resume',
   'session.action.resuming': 'Resuming…',
   'session.action.resumeFailed': 'Failed to resume session',
+  'session.action.fork': 'Fork (with history)',
+  'session.action.forking': 'Forking…',
+  'session.action.forkFailed': 'Failed to fork session',
+  'session.action.newSession': 'New (without history)',
 
   // Dialogs
   'dialog.rename.title': 'Rename Session',

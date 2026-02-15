@@ -77,9 +77,11 @@ export async function claudeLocal(opts: {
 
     // Prepare environment variables
     // Note: Local mode uses global Claude installation
+    // Remove CLAUDECODE to prevent "nested session" detection by Claude CLI
     const env = {
         ...process.env,
         DISABLE_AUTOUPDATER: '1',
+        CLAUDECODE: undefined,
         ...opts.claudeEnvVars
     }
 

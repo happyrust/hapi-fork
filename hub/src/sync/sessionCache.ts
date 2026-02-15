@@ -341,6 +341,74 @@ export class SessionCache {
         this.refreshSession(newSessionId)
     }
 
+    forkSession(sessionId: string, namespace: string): string {
+        const access = this.resolveSessionAccess(sessionId, namespace)
+        if (!access.ok) {
+            throw new Error(access.reason === 'access-denied' ? 'Session access denied' : 'Session not found')
+        }
+
+        const session = access.session
+
+        // Build forked metadata: copy + clear resume tokens + append suffix to name
+        const forkedMetadata = (() => {
+            if (!session.metadata) return null
+            const md: Record<string, unknown> = { ...session.metadata }
+
+            // Clear resume tokens
+            delete md.claudeSessionId
+            delete md.codexSessionId
+            delete md.geminiSessionId
+            delete md.opencodeSessionId
+
+            // Append suffix to name (fallback to summary.text if name is empty)
+            let baseName = typeof md.name === 'string' && md.name ? md.name : ''
+            if (!baseName) {
+                const summary = md.summary as { text?: unknown } | undefined
+                baseName = typeof summary?.text === 'string' ? summary.text : ''
+            }
+            md.name = baseName ? `${baseName}（分支）` : '（分支）'
+
+            // Preserve model and permission config from the live session
+            if (session.modelMode) {
+                md.forkModelMode = session.modelMode
+            }
+            if (session.permissionMode) {
+                md.forkPermissionMode = session.permissionMode
+            }
+
+            return md
+        })()
+
+        // Clear requests from agentState
+        const forkedAgentState = (() => {
+            if (!session.agentState) return null
+            const st: Record<string, unknown> = { ...session.agentState }
+            delete st.requests
+            return st
+        })()
+
+        const forkedTodos = session.todos ?? null
+        const now = Date.now()
+
+        // Create session + copy messages in a single transaction
+        const newSession = this.store.transaction(() => {
+            const created = this.store.sessions.createSessionForFork({
+                namespace,
+                metadata: forkedMetadata,
+                agentState: forkedAgentState,
+                todos: forkedTodos,
+                todosUpdatedAt: forkedTodos ? now : null
+            })
+
+            this.store.messages.copySessionMessages(sessionId, created.id)
+
+            return created
+        })
+
+        this.refreshSession(newSession.id)
+        return newSession.id
+    }
+
     private mergeSessionMetadata(oldMetadata: unknown | null, newMetadata: unknown | null): unknown | null {
         if (!oldMetadata || typeof oldMetadata !== 'object') {
             return newMetadata

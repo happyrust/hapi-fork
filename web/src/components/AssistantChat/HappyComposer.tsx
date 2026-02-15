@@ -17,6 +17,7 @@ import type { Suggestion } from '@/hooks/useActiveSuggestions'
 import type { ConversationStatus } from '@/realtime/types'
 import { useActiveWord } from '@/hooks/useActiveWord'
 import { useActiveSuggestions } from '@/hooks/useActiveSuggestions'
+import { useInputHistory } from '@/hooks/useInputHistory'
 import { applySuggestion } from '@/utils/applySuggestion'
 import { usePlatform } from '@/hooks/usePlatform'
 import { usePWAInstall } from '@/hooks/usePWAInstall'
@@ -152,6 +153,7 @@ export function HappyComposer(props: {
         autocompleteSuggestions,
         { clampSelection: true, wrapAround: true }
     )
+    const inputHistory = useInputHistory()
 
     const haptic = useCallback((type: 'light' | 'success' | 'error' = 'light') => {
         if (type === 'light') {
@@ -282,6 +284,44 @@ export function HappyComposer(props: {
             }
         }
 
+        // History navigation with up/down arrows when no autocomplete is showing
+        if (key === 'ArrowUp' && !e.shiftKey) {
+            const el = e.currentTarget
+            // Only activate when cursor is at the very start (or text is empty)
+            if (el.selectionStart === 0 && el.selectionEnd === 0) {
+                const entry = inputHistory.up(composerText)
+                if (entry !== null) {
+                    e.preventDefault()
+                    api.composer().setText(entry)
+                    setInputState({ text: entry, selection: { start: entry.length, end: entry.length } })
+                    setTimeout(() => {
+                        if (textareaRef.current) {
+                            textareaRef.current.setSelectionRange(entry.length, entry.length)
+                        }
+                    }, 0)
+                }
+                return
+            }
+        }
+        if (key === 'ArrowDown' && !e.shiftKey) {
+            const el = e.currentTarget
+            // Only activate when cursor is at the very end
+            if (el.selectionStart === el.value.length && el.selectionEnd === el.value.length) {
+                const entry = inputHistory.down()
+                if (entry !== null) {
+                    e.preventDefault()
+                    api.composer().setText(entry)
+                    setInputState({ text: entry, selection: { start: entry.length, end: entry.length } })
+                    setTimeout(() => {
+                        if (textareaRef.current) {
+                            textareaRef.current.setSelectionRange(entry.length, entry.length)
+                        }
+                    }, 0)
+                }
+                return
+            }
+        }
+
         if (key === 'Escape' && threadIsRunning) {
             e.preventDefault()
             handleAbort()
@@ -308,7 +348,10 @@ export function HappyComposer(props: {
         onPermissionModeChange,
         permissionMode,
         permissionModes,
-        haptic
+        haptic,
+        inputHistory,
+        api,
+        composerText
     ])
 
     useEffect(() => {
@@ -332,7 +375,8 @@ export function HappyComposer(props: {
             end: e.target.selectionEnd
         }
         setInputState({ text: e.target.value, selection })
-    }, [])
+        inputHistory.reset()
+    }, [inputHistory])
 
     const handleSelect = useCallback((e: ReactSyntheticEvent<HTMLTextAreaElement>) => {
         const target = e.target as HTMLTextAreaElement
@@ -369,8 +413,9 @@ export function HappyComposer(props: {
             event.preventDefault()
             return
         }
+        inputHistory.push(composerText)
         setShowContinueHint(false)
-    }, [attachmentsReady])
+    }, [attachmentsReady, inputHistory, composerText])
 
     const handlePermissionChange = useCallback((mode: PermissionMode) => {
         if (!onPermissionModeChange || controlsDisabled) return
@@ -393,8 +438,9 @@ export function HappyComposer(props: {
     const voiceEnabled = Boolean(onVoiceToggle)
 
     const handleSend = useCallback(() => {
+        inputHistory.push(composerText)
         api.composer().send()
-    }, [api])
+    }, [api, inputHistory, composerText])
 
     const overlays = useMemo(() => {
         if (showSettings && (showPermissionSettings || showModelSettings)) {

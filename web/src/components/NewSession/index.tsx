@@ -7,7 +7,7 @@ import { useSessions } from '@/hooks/queries/useSessions'
 import { useActiveSuggestions, type Suggestion } from '@/hooks/useActiveSuggestions'
 import { useDirectorySuggestions } from '@/hooks/useDirectorySuggestions'
 import { useRecentPaths } from '@/hooks/useRecentPaths'
-import type { AgentType, SessionType } from './types'
+import { type AgentType, type SessionType, DEFAULT_MODEL } from './types'
 import { ActionButtons } from './ActionButtons'
 import { AgentSelector } from './AgentSelector'
 import { DirectorySection } from './DirectorySection'
@@ -29,6 +29,7 @@ export function NewSession(props: {
     isLoading?: boolean
     onSuccess: (sessionId: string) => void
     onCancel: () => void
+    initialYolo?: boolean
 }) {
     const { haptic } = usePlatform()
     const { spawnSession, isPending, error: spawnError } = useSpawnSession(props.api)
@@ -42,8 +43,8 @@ export function NewSession(props: {
     const [isDirectoryFocused, setIsDirectoryFocused] = useState(false)
     const [pathExistence, setPathExistence] = useState<Record<string, boolean>>({})
     const [agent, setAgent] = useState<AgentType>(loadPreferredAgent)
-    const [model, setModel] = useState('auto')
-    const [yoloMode, setYoloMode] = useState(loadPreferredYoloMode)
+    const [model, setModel] = useState(() => DEFAULT_MODEL[loadPreferredAgent()])
+    const [yoloMode, setYoloMode] = useState(() => props.initialYolo ?? loadPreferredYoloMode())
     const [sessionType, setSessionType] = useState<SessionType>('simple')
     const [worktreeName, setWorktreeName] = useState('')
     const [error, setError] = useState<string | null>(null)
@@ -57,7 +58,7 @@ export function NewSession(props: {
     }, [sessionType])
 
     useEffect(() => {
-        setModel('auto')
+        setModel(DEFAULT_MODEL[agent])
     }, [agent])
 
     useEffect(() => {

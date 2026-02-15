@@ -236,7 +236,7 @@ export class Query implements AsyncIterableIterator<SDKMessage> {
                 signal
             })
         }
-        
+
         throw new Error('Unsupported control request subtype: ' + request.request.subtype)
     }
 
@@ -327,7 +327,7 @@ export function query(config: {
     // - If it's just 'claude' command → spawn('claude', args) with shell on Windows
     // - If it's a full path to binary or script → spawn(path, args)
     const isCommandOnly = pathToClaudeCodeExecutable === 'claude'
-    
+
     // Validate executable path (skip for command-only mode)
     if (!isCommandOnly && !existsSync(pathToClaudeCodeExecutable)) {
         throw new ReferenceError(`Claude Code executable not found at ${pathToClaudeCodeExecutable}. Is options.pathToClaudeCodeExecutable set?`)
@@ -337,7 +337,9 @@ export function query(config: {
     cleanupMcpConfig = appendMcpConfigArg(spawnArgs, mcpServers)
 
     // Spawn Claude Code process
-    const spawnEnv = withBunRuntimeEnv(process.env, { allowBunBeBun: false })
+    // Remove CLAUDECODE env var to prevent "nested session" detection by Claude CLI
+    const { CLAUDECODE: _, ...cleanEnv } = withBunRuntimeEnv(process.env, { allowBunBeBun: false })
+    const spawnEnv = cleanEnv as NodeJS.ProcessEnv
     logDebug(`Spawning Claude Code process: ${pathToClaudeCodeExecutable} ${spawnArgs.join(' ')}`)
 
     const child = spawn(pathToClaudeCodeExecutable, spawnArgs, {

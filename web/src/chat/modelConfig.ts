@@ -13,10 +13,10 @@ import type { ModelMode } from '@/types/api'
 const CONTEXT_HEADROOM_TOKENS = 10_000
 
 const MODEL_CONTEXT_WINDOWS: Record<ModelMode, number> = {
-    // Claude Code modes used in this app; currently treated as ~200k context.
+    // Claude Code modes used in this app
     default: 200_000,
     sonnet: 200_000,
-    opus: 200_000
+    opus: 1_000_000  // Opus 支持 1M 上下文
 }
 
 export function getContextBudgetTokens(modelMode: ModelMode | undefined): number | null {

@@ -1,5 +1,5 @@
 import { EnhancedMode, PermissionMode } from "./loop";
-import { query, type QueryOptions as Options, type SDKMessage, type SDKSystemMessage, AbortError, SDKUserMessage } from '@/claude/sdk'
+import { query, type QueryOptions as Options, type SDKMessage, type SDKSystemMessage, type SDKResultMessage, AbortError, SDKUserMessage } from '@/claude/sdk'
 import { claudeCheckSession } from "./utils/claudeCheckSession";
 import { join } from 'node:path';
 import { parseSpecialCommand } from "@/parsers/specialCommands";
@@ -43,7 +43,7 @@ export async function claudeRemote(opts: {
     if (opts.sessionId && !claudeCheckSession(opts.sessionId, opts.path)) {
         startFrom = null;
     }
-    
+
     // Extract --resume from claudeArgs if present (for first spawn)
     if (!startFrom && opts.claudeArgs) {
         for (let i = 0; i < opts.claudeArgs.length; i++) {
@@ -107,6 +107,10 @@ export async function claudeRemote(opts: {
             opts.onCompletionEvent('Compaction started');
         }
     }
+
+    // Auto compact state
+    const AUTO_COMPACT_TOKEN_THRESHOLD = 150_000;
+    let isAutoCompacting = false;
 
     // Prepare SDK options
     let mode = initial.mode;
@@ -187,7 +191,7 @@ export async function claudeRemote(opts: {
             // Handle result messages
             if (message.type === 'result') {
                 updateThinking(false);
-                logger.debug('[claudeRemote] Result received, exiting claudeRemote');
+                const resultMsg = message as SDKResultMessage;
 
                 // Send completion messages
                 if (isCompactCommand) {
@@ -197,6 +201,34 @@ export async function claudeRemote(opts: {
                     }
                     isCompactCommand = false;
                 }
+
+                // Auto compact completed — reset session to start fresh
+                if (isAutoCompacting) {
+                    logger.debug('[claudeRemote] Auto compact completed, resetting session');
+                    isAutoCompacting = false;
+                    if (opts.onCompletionEvent) {
+                        opts.onCompletionEvent('Auto compaction completed, starting new session');
+                    }
+                    if (opts.onSessionReset) {
+                        opts.onSessionReset();
+                    }
+                    messages.end();
+                    return;
+                }
+
+                // Check if we should trigger auto compact
+                const inputTokens = resultMsg.usage?.input_tokens ?? 0;
+                if (inputTokens >= AUTO_COMPACT_TOKEN_THRESHOLD) {
+                    logger.debug(`[claudeRemote] Auto compact triggered: ${inputTokens} input tokens >= ${AUTO_COMPACT_TOKEN_THRESHOLD} threshold`);
+                    isAutoCompacting = true;
+                    if (opts.onCompletionEvent) {
+                        opts.onCompletionEvent(`Auto compaction started (${inputTokens} tokens)`);
+                    }
+                    messages.push({ type: 'user', message: { role: 'user', content: '/compact' } });
+                    continue;
+                }
+
+                logger.debug('[claudeRemote] Result received');
 
                 // Send ready event
                 opts.onReady();

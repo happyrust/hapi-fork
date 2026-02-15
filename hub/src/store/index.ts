@@ -83,6 +83,21 @@ export class Store {
         this.push = new PushStore(this.db)
     }
 
+    transaction<T>(fn: () => T): T {
+        try {
+            this.db.exec('BEGIN')
+            const result = fn()
+            this.db.exec('COMMIT')
+            return result
+        } catch (error) {
+            try {
+                this.db.exec('ROLLBACK')
+            } catch {
+            }
+            throw error
+        }
+    }
+
     private initSchema(): void {
         const currentVersion = this.getUserVersion()
         if (currentVersion === 0) {

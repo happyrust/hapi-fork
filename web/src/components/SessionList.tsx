@@ -5,6 +5,7 @@ import { useLongPress } from '@/hooks/useLongPress'
 import { usePlatform } from '@/hooks/usePlatform'
 import { useSessionActions } from '@/hooks/mutations/useSessionActions'
 import { useResumeSession } from '@/hooks/mutations/useResumeSession'
+import { useForkSession } from '@/hooks/mutations/useForkSession'
 import { SessionActionMenu } from '@/components/SessionActionMenu'
 import { RenameSessionDialog } from '@/components/RenameSessionDialog'
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog'
@@ -166,12 +167,13 @@ function SessionItem(props: {
     session: SessionSummary
     onSelect: (sessionId: string) => void
     onResumeSuccess?: (newSessionId: string) => void
+    onNewSession?: () => void
     showPath?: boolean
     api: ApiClient | null
     selected?: boolean
 }) {
     const { t } = useTranslation()
-    const { session: s, onSelect, onResumeSuccess, showPath = true, api, selected = false } = props
+    const { session: s, onSelect, onResumeSuccess, onNewSession, showPath = true, api, selected = false } = props
     const { haptic } = usePlatform()
     const [menuOpen, setMenuOpen] = useState(false)
     const [menuAnchorPoint, setMenuAnchorPoint] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -186,6 +188,17 @@ function SessionItem(props: {
     )
 
     const { resumeSession, isPending: isResuming } = useResumeSession(api, s.id)
+    const { forkSession, isPending: isForking } = useForkSession(api, s.id)
+
+    const handleFork = async () => {
+        try {
+            const newSessionId = await forkSession()
+            setMenuOpen(false)
+            onSelect(newSessionId)
+        } catch {
+            // Error is handled by the hook
+        }
+    }
 
     const handleResume = async () => {
         try {
@@ -293,6 +306,9 @@ function SessionItem(props: {
                 onDelete={() => setDeleteOpen(true)}
                 onResume={!s.active ? handleResume : undefined}
                 isResuming={isResuming}
+                onFork={handleFork}
+                isForking={isForking}
+                onNewSession={onNewSession}
                 anchorPoint={menuAnchorPoint}
             />
 
@@ -335,6 +351,7 @@ export function SessionList(props: {
     sessions: SessionSummary[]
     onSelect: (sessionId: string) => void
     onNewSession: () => void
+    onNewSessionFromMenu?: () => void
     onRefresh: () => void
     isLoading: boolean
     renderHeader?: boolean
@@ -429,6 +446,7 @@ export function SessionList(props: {
                                             session={s}
                                             onSelect={props.onSelect}
                                             onResumeSuccess={props.onSelect}
+                                            onNewSession={props.onNewSessionFromMenu ?? props.onNewSession}
                                             showPath={false}
                                             api={api}
                                             selected={s.id === selectedSessionId}

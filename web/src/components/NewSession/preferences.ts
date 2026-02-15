@@ -27,9 +27,11 @@ export function savePreferredAgent(agent: AgentType): void {
 
 export function loadPreferredYoloMode(): boolean {
     try {
-        return localStorage.getItem(YOLO_STORAGE_KEY) === 'true'
+        const stored = localStorage.getItem(YOLO_STORAGE_KEY)
+        if (stored === null) return true
+        return stored === 'true'
     } catch {
-        return false
+        return true
     }
 }
 

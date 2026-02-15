@@ -18,6 +18,9 @@ type SessionActionMenuProps = {
     onDelete: () => void
     onResume?: () => void
     isResuming?: boolean
+    onFork?: () => void
+    isForking?: boolean
+    onNewSession?: () => void
     anchorPoint: { x: number; y: number }
     menuId?: string
 }
@@ -86,6 +89,49 @@ function TrashIcon(props: { className?: string }) {
     )
 }
 
+function GitForkIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <circle cx="12" cy="18" r="3" />
+            <circle cx="6" cy="6" r="3" />
+            <circle cx="18" cy="6" r="3" />
+            <path d="M18 9v2c0 .6-.4 1-1 1H7c-.6 0-1-.4-1-1V9" />
+            <path d="M12 12v3" />
+        </svg>
+    )
+}
+
+function PlusIcon(props: { className?: string }) {
+    return (
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={props.className}
+        >
+            <path d="M5 12h14" />
+            <path d="M12 5v14" />
+        </svg>
+    )
+}
+
 function PlayIcon(props: { className?: string }) {
     return (
         <svg
@@ -122,6 +168,9 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
         onDelete,
         onResume,
         isResuming,
+        onFork,
+        isForking,
+        onNewSession,
         anchorPoint,
         menuId
     } = props
@@ -149,6 +198,19 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
     const handleResume = () => {
         if (onResume && !isResuming) {
             onResume()
+        }
+    }
+
+    const handleFork = () => {
+        if (onFork && !isForking) {
+            onFork()
+        }
+    }
+
+    const handleNewSession = () => {
+        onClose()
+        if (onNewSession) {
+            onNewSession()
         }
     }
 
@@ -278,6 +340,31 @@ export function SessionActionMenu(props: SessionActionMenuProps) {
                     >
                         <PlayIcon className="text-[var(--app-link)]" />
                         {isResuming ? t('session.action.resuming') : t('session.action.resume')}
+                    </button>
+                ) : null}
+
+                {onFork ? (
+                    <button
+                        type="button"
+                        role="menuitem"
+                        className={`${baseItemClassName} hover:bg-[var(--app-subtle-bg)]`}
+                        onClick={handleFork}
+                        disabled={isForking}
+                    >
+                        <GitForkIcon className="text-[var(--app-hint)]" />
+                        {isForking ? t('session.action.forking') : t('session.action.fork')}
+                    </button>
+                ) : null}
+
+                {onNewSession ? (
+                    <button
+                        type="button"
+                        role="menuitem"
+                        className={`${baseItemClassName} hover:bg-[var(--app-subtle-bg)]`}
+                        onClick={handleNewSession}
+                    >
+                        <PlusIcon className="text-[var(--app-hint)]" />
+                        {t('session.action.newSession')}
                     </button>
                 ) : null}
 

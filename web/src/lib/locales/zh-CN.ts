@@ -67,6 +67,10 @@ export default {
   'session.action.resume': '恢复',
   'session.action.resuming': '恢复中…',
   'session.action.resumeFailed': '恢复会话失败',
+  'session.action.fork': 'Fork（继承历史）',
+  'session.action.forking': 'Fork中…',
+  'session.action.forkFailed': 'Fork会话失败',
+  'session.action.newSession': 'New（不继承历史）',
 
   // Dialogs
   'dialog.rename.title': '重命名会话',
